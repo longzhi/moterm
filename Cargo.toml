@@ -1,0 +1,20 @@
+[package]
+name = "moterm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+winit = "0.28"
+softbuffer = "0.3"
+fontdue = { version = "0.8", default-features = false }
+vte = "0.13"
+libc = "0.2"
+polling = "3"
+unicode-width = "0.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = "z"
