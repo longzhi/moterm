@@ -46,7 +46,9 @@ fn run() -> Result<(), String> {
         .build(&event_loop)
         .map_err(|e| format!("创建窗口失败: {e}"))?;
 
-    let mut renderer = Renderer::new(font, 16.0);
+    let scale_factor = window.scale_factor();
+    let font_size = (14.0 * scale_factor) as f32; // 14pt logical, scaled for HiDPI
+    let mut renderer = Renderer::new(font, font_size);
     let size = window.inner_size();
     let (cols, rows) = renderer.grid_size_for_pixels(size.width as usize, size.height as usize);
     let mut term = Terminal::new(cols, rows);
