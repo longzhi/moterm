@@ -111,6 +111,11 @@ impl PtyHandle {
                             }
                         }
                     }
+                    // polling 在部分后端是 one-shot 语义，事件处理后需要重新 arm。
+                    if poller.modify(&file, Event::readable(1)).is_err() {
+                        emit(PtyEvent::Exit);
+                        return;
+                    }
                 }
             }
             emit(PtyEvent::Exit);
@@ -145,6 +150,9 @@ impl PtyHandle {
                     continue;
                 }
                 return Err(format!("PTY 写入失败: {err}"));
+            }
+            if n == 0 {
+                return Err("PTY 写入失败: write 返回 0".to_string());
             }
             written += n as usize;
         }

@@ -277,7 +277,14 @@ fn pixel_to_cell(
 }
 
 fn write_pty(pty: &Arc<Mutex<PtyHandle>>, bytes: &[u8]) {
-    if let Ok(pty) = pty.lock() {
-        let _ = pty.write(bytes);
+    match pty.lock() {
+        Ok(pty) => {
+            if let Err(e) = pty.write(bytes) {
+                eprintln!("写入 PTY 失败 ({} bytes): {}", bytes.len(), e);
+            }
+        }
+        Err(e) => {
+            eprintln!("PTY 锁失败: {e}");
+        }
     }
 }

@@ -182,7 +182,11 @@ impl Renderer {
         self.canvas.clear(DEFAULT_BG);
 
         let start_global = term.visible_start_global_row();
-        let cursor = term.cursor_global_pos();
+        let cursor = if term.view_scroll == 0 {
+            Some(term.cursor_screen_pos())
+        } else {
+            None
+        };
         for view_row in 0..term.rows() {
             let global_row = start_global + view_row;
             let Some(row) = term.visible_line(view_row) else {
@@ -198,7 +202,8 @@ impl Renderer {
                 if term.is_selected(global_row, col) {
                     bg = SELECTION_BG;
                 }
-                if global_row == cursor.row && col == cursor.col && term.view_scroll == 0 {
+                if matches!(cursor, Some((cursor_row, cursor_col)) if view_row == cursor_row && col == cursor_col)
+                {
                     bg = CURSOR_BG;
                     fg = CURSOR_FG;
                 }

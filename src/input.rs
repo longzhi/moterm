@@ -111,9 +111,9 @@ fn ctrl_letter(key: VirtualKeyCode) -> Option<u8> {
         Y => b'y',
         Z => b'z',
         Space => return Some(0),
-        LeftBracket => return Some(0x1b),
+        LBracket => return Some(0x1b),
         Backslash => return Some(0x1c),
-        RightBracket => return Some(0x1d),
+        RBracket => return Some(0x1d),
         Minus => return Some(0x1f),
         _ => return None,
     };
