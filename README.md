@@ -42,8 +42,10 @@ Most modern terminals are feature-rich but heavy. Moterm takes the opposite appr
 
 ```bash
 brew tap longzhi/tap
-brew install moterm
+brew install --cask moterm
 ```
+
+This installs `Moterm.app` to `/Applications` with the app icon, Launchpad, and Dock support.
 
 ### From source
 
