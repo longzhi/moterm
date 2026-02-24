@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::Write;
 use std::process::{Command, Stdio};
 
 pub fn paste_from_clipboard() -> Result<String, String> {

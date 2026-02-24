@@ -1,5 +1,4 @@
 /// Simple text search through terminal scrollback + screen.
-
 pub struct SearchState {
     pub active: bool,
     pub query: String,

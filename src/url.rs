@@ -1,6 +1,4 @@
 /// Simple URL detector — finds http(s):// URLs in terminal text.
-/// Returns (start_col, end_col) pairs for a given line string.
-
 pub fn detect_urls(line: &str) -> Vec<(usize, usize, String)> {
     let mut results = Vec::new();
     let chars: Vec<char> = line.chars().collect();

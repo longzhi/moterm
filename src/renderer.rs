@@ -69,6 +69,7 @@ pub struct FontAtlas {
     pub cell_width: usize,
     pub cell_height: usize,
     pub baseline: i32,
+    #[allow(dead_code)]
     pub line_gap: usize,
     pub cache: Arc<Mutex<GlyphCache>>,
 }
@@ -180,7 +181,7 @@ impl Renderer {
         (cols, rows)
     }
 
-    pub fn surface_size_for_grid(&self, cols: usize, rows: usize) -> (usize, usize) {
+    #[allow(dead_code)]    pub fn surface_size_for_grid(&self, cols: usize, rows: usize) -> (usize, usize) {
         (
             cols * self.atlas.cell_width + self.padding_x * 2,
             rows * self.atlas.cell_height + self.padding_y * 2,

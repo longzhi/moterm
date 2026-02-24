@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, Default)]
 #[serde(default)]
 pub struct Config {
     pub font: FontConfig,
@@ -38,16 +38,7 @@ pub struct ColorConfig {
     pub foreground: String,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            font: FontConfig::default(),
-            window: WindowConfig::default(),
-            cursor: CursorConfig::default(),
-            colors: ColorConfig::default(),
-        }
-    }
-}
+// Config derives Default since all fields have Default impls
 
 impl Default for FontConfig {
     fn default() -> Self {

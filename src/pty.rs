@@ -17,6 +17,7 @@ pub enum PtyEvent {
 
 pub struct PtyHandle {
     master_fd: RawFd,
+    #[allow(dead_code)]
     pub child_pid: libc::pid_t,
 }
 

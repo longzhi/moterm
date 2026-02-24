@@ -79,9 +79,9 @@ impl Perform for VteHandler<'_> {
         if action == 'q' && intermediates == [b' '] {
             let style = p.first().copied().unwrap_or(0);
             self.term.cursor_style = match style {
-                0 | 1 | 2 => crate::terminal::CursorStyle::Block,
-                3 | 4 => crate::terminal::CursorStyle::Underline,
-                5 | 6 => crate::terminal::CursorStyle::Beam,
+                0..=2 => crate::terminal::CursorStyle::Block,
+                3..=4 => crate::terminal::CursorStyle::Underline,
+                5..=6 => crate::terminal::CursorStyle::Beam,
                 _ => crate::terminal::CursorStyle::Block,
             };
             return;
@@ -106,16 +106,16 @@ impl Perform for VteHandler<'_> {
                 .term
                 .set_cursor_col(Self::first_or(&p, 1).saturating_sub(1)),
             'H' | 'f' => {
-                let row = p.get(0).copied().unwrap_or(1).max(1) as usize - 1;
+                let row = p.first().copied().unwrap_or(1).max(1) as usize - 1;
                 let col = p.get(1).copied().unwrap_or(1).max(1) as usize - 1;
                 self.term.move_cursor(row, col);
             }
             'J' => self
                 .term
-                .erase_in_display(p.get(0).copied().unwrap_or(0) as usize),
+                .erase_in_display(p.first().copied().unwrap_or(0) as usize),
             'K' => self
                 .term
-                .erase_in_line(p.get(0).copied().unwrap_or(0) as usize),
+                .erase_in_line(p.first().copied().unwrap_or(0) as usize),
             'L' => self.term.scroll_down_lines(Self::first_or(&p, 1)),
             'M' => self.term.scroll_up_lines(Self::first_or(&p, 1)),
             '@' => self.term.insert_blank_chars(Self::first_or(&p, 1)),

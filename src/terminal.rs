@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+#![allow(dead_code, clippy::manual_range_patterns)]use std::cmp::{max, min};
 use std::collections::VecDeque;
 
 use unicode_width::UnicodeWidthChar;
@@ -179,9 +179,9 @@ impl Terminal {
         let mut new_screen: Vec<Row> = (0..rows).map(|_| Row::new(cols)).collect();
         let copy_rows = min(self.rows, rows);
         let copy_cols = min(self.cols, cols);
-        for r in 0..copy_rows {
+        for (r, new_row) in new_screen.iter_mut().enumerate().take(copy_rows) {
             for c in 0..copy_cols {
-                new_screen[r].cells[c] = self.screen[r].cells[c];
+                new_row.cells[c] = self.screen[r].cells[c];
             }
         }
         self.cols = cols;
