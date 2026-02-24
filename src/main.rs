@@ -440,9 +440,12 @@ fn run() -> Result<(), String> {
 
                 match surface.buffer_mut() {
                     Ok(mut buffer) => {
+                        let bg = crate::color::DEFAULT_BG.to_u32();
                         if buffer.len() == renderer.canvas.pixels.len() {
                             buffer.copy_from_slice(&renderer.canvas.pixels);
                         } else {
+                            // Fill entire buffer with bg first, then copy canvas
+                            buffer.fill(bg);
                             for (dst, src) in buffer
                                 .iter_mut()
                                 .zip(renderer.canvas.pixels.iter().copied())
