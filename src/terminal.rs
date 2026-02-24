@@ -617,6 +617,54 @@ impl Terminal {
         self.start_selection(pos);
     }
 
+    /// Select the word at (view_row, col)
+    pub fn select_word_at_view(&mut self, view_row: usize, col: usize) {
+        let global_row = self.visible_start_global_row() + view_row;
+        if let Some(row) = self.line_at_global(global_row) {
+            let cells = &row.cells;
+            let col = col.min(cells.len().saturating_sub(1));
+            // Find word boundaries (non-whitespace / non-special chars)
+            let is_word_char = |c: char| c.is_alphanumeric() || c == '_' || c == '-' || c == '.';
+            let ch = cells[col].ch;
+            if !is_word_char(ch) {
+                // Single char selection for non-word chars
+                let pos = Pos { row: global_row, col };
+                self.selection = Some(Selection { anchor: pos, focus: pos });
+                return;
+            }
+            let mut start = col;
+            while start > 0 && is_word_char(cells[start - 1].ch) {
+                start -= 1;
+            }
+            let mut end = col;
+            while end + 1 < cells.len() && is_word_char(cells[end + 1].ch) {
+                end += 1;
+            }
+            self.selection = Some(Selection {
+                anchor: Pos { row: global_row, col: start },
+                focus: Pos { row: global_row, col: end },
+            });
+        }
+    }
+
+    /// Select entire line at view_row
+    pub fn select_line_at_view(&mut self, view_row: usize) {
+        let global_row = self.visible_start_global_row() + view_row;
+        self.selection = Some(Selection {
+            anchor: Pos { row: global_row, col: 0 },
+            focus: Pos { row: global_row, col: self.cols.saturating_sub(1) },
+        });
+    }
+
+    /// Select all content (scrollback + screen)
+    pub fn select_all(&mut self) {
+        let last_row = self.total_lines().saturating_sub(1);
+        self.selection = Some(Selection {
+            anchor: Pos { row: 0, col: 0 },
+            focus: Pos { row: last_row, col: self.cols.saturating_sub(1) },
+        });
+    }
+
     pub fn selection_text_or_empty(&self) -> String {
         self.selection_text().unwrap_or_default()
     }

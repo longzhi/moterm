@@ -76,6 +76,8 @@ fn run() -> Result<(), String> {
     let mut modifiers = ModifiersState::empty();
     let mut mouse_pos = PhysicalPosition::new(0.0f64, 0.0f64);
     let mut selecting = false;
+    let mut last_click_time = std::time::Instant::now();
+    let mut click_count: u8 = 0;
 
     let context = unsafe { softbuffer::Context::new(&window) }
         .map_err(|e| format!("softbuffer context 创建失败: {e}"))?;
@@ -258,6 +260,13 @@ fn run() -> Result<(), String> {
                                     window.request_redraw();
                                     return;
                                 }
+                                // Cmd+A: select all
+                                winit::event::VirtualKeyCode::A => {
+                                    term.select_all();
+                                    dirty = true;
+                                    window.request_redraw();
+                                    return;
+                                }
                                 // Cmd+F: toggle search
                                 winit::event::VirtualKeyCode::F => {
                                     search.toggle();
@@ -353,8 +362,23 @@ fn run() -> Result<(), String> {
                                     }
                                 }
                             }
-                            selecting = true;
-                            term.start_selection_from_view(view_row, col);
+                            // Track click count for double/triple click
+                            let now = std::time::Instant::now();
+                            if now.duration_since(last_click_time).as_millis() < 400 {
+                                click_count = (click_count + 1).min(3);
+                            } else {
+                                click_count = 1;
+                            }
+                            last_click_time = now;
+
+                            match click_count {
+                                2 => term.select_word_at_view(view_row, col),
+                                3 => term.select_line_at_view(view_row),
+                                _ => {
+                                    selecting = true;
+                                    term.start_selection_from_view(view_row, col);
+                                }
+                            }
                             dirty = true;
                             window.request_redraw();
                         }

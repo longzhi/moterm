@@ -54,6 +54,12 @@ impl PtyHandle {
                 let term = CString::new("xterm-256color").unwrap();
                 let name = CString::new("TERM").unwrap();
                 libc::setenv(name.as_ptr(), term.as_ptr(), 1);
+                let tp_name = CString::new("TERM_PROGRAM").unwrap();
+                let tp_val = CString::new("moterm").unwrap();
+                libc::setenv(tp_name.as_ptr(), tp_val.as_ptr(), 1);
+                let tpv_name = CString::new("TERM_PROGRAM_VERSION").unwrap();
+                let tpv_val = CString::new(env!("CARGO_PKG_VERSION")).unwrap();
+                libc::setenv(tpv_name.as_ptr(), tpv_val.as_ptr(), 1);
                 let argv = [shell_c.as_ptr(), std::ptr::null()];
                 libc::execvp(shell_c.as_ptr(), argv.as_ptr());
                 libc::_exit(127);
