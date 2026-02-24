@@ -103,6 +103,14 @@ pub struct Terminal {
     pub title_changed: bool,
     pub cursor_style: CursorStyle,
     pub bell: bool,
+    /// Mouse tracking mode: 0=off, 1000=normal, 1002=button, 1003=any
+    pub mouse_mode: u16,
+    /// Mouse encoding: false=normal/utf8, true=SGR (1006)
+    pub mouse_sgr: bool,
+    /// Bracketed paste mode
+    pub bracketed_paste: bool,
+    /// Alternate screen buffer active
+    pub alt_screen: bool,
 }
 
 impl Terminal {
@@ -123,6 +131,10 @@ impl Terminal {
             title_changed: false,
             cursor_style: CursorStyle::Block,
             bell: false,
+            mouse_mode: 0,
+            mouse_sgr: false,
+            bracketed_paste: false,
+            alt_screen: false,
         }
     }
 

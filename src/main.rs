@@ -3,6 +3,7 @@ mod color;
 mod config;
 mod font;
 mod input;
+mod mouse;
 mod pty;
 mod renderer;
 mod terminal;
@@ -376,7 +377,18 @@ fn run() -> Result<(), String> {
                 }
                 WindowEvent::CursorMoved { position, .. } => {
                     mouse_pos = position;
-                    if selecting {
+                    // Forward mouse motion in button-event (1002) or any-event (1003) mode
+                    if term.mouse_mode >= 1002 && selecting {
+                        if let Some((view_row, col)) = pixel_to_cell(&renderer, &window, mouse_pos) {
+                            let btn = mouse::BUTTON_LEFT + 32; // motion flag
+                            let bytes = if term.mouse_sgr {
+                                mouse::encode_sgr(btn, col, view_row, true)
+                            } else {
+                                mouse::encode_normal(btn, col, view_row)
+                            };
+                            write_pty(&pty, &bytes);
+                        }
+                    } else if selecting {
                         if let Some((view_row, col)) = pixel_to_cell(&renderer, &window, mouse_pos)
                         {
                             term.set_selection_focus_from_view(view_row, col);
@@ -387,50 +399,73 @@ fn run() -> Result<(), String> {
                 }
                 WindowEvent::MouseInput {
                     state,
-                    button: MouseButton::Left,
+                    button,
                     ..
-                } => match state {
-                    ElementState::Pressed => {
-                        if let Some((view_row, col)) = pixel_to_cell(&renderer, &window, mouse_pos)
-                        {
-                            // Cmd+click: open URL
-                            if modifiers.logo() {
-                                if let Some(row) = term.visible_line(view_row) {
-                                    let line_text: String = row.cells.iter().map(|c| c.ch).collect();
-                                    for (start, end, u) in url::detect_urls(&line_text) {
-                                        if col >= start && col < end {
-                                            eprintln!("打开 URL: {u}");
-                                            url::open_url(&u);
-                                            return;
+                } => {
+                    if let Some((view_row, col)) = pixel_to_cell(&renderer, &window, mouse_pos) {
+                        let btn = match button {
+                            MouseButton::Left => mouse::BUTTON_LEFT,
+                            MouseButton::Middle => mouse::BUTTON_MIDDLE,
+                            MouseButton::Right => mouse::BUTTON_RIGHT,
+                            _ => return,
+                        };
+
+                        // Forward mouse to application if mouse mode is active
+                        if term.mouse_mode > 0 && !modifiers.logo() {
+                            let pressed = state == ElementState::Pressed;
+                            let bytes = if term.mouse_sgr {
+                                mouse::encode_sgr(btn, col, view_row, pressed)
+                            } else if pressed {
+                                mouse::encode_normal(btn, col, view_row)
+                            } else {
+                                mouse::encode_normal(mouse::BUTTON_RELEASE, col, view_row)
+                            };
+                            write_pty(&pty, &bytes);
+                            return;
+                        }
+
+                        // Normal terminal selection behavior (only left button)
+                        if button == MouseButton::Left {
+                            match state {
+                                ElementState::Pressed => {
+                                    // Cmd+click: open URL
+                                    if modifiers.logo() {
+                                        if let Some(row) = term.visible_line(view_row) {
+                                            let line_text: String = row.cells.iter().map(|c| c.ch).collect();
+                                            for (start, end, u) in url::detect_urls(&line_text) {
+                                                if col >= start && col < end {
+                                                    url::open_url(&u);
+                                                    return;
+                                                }
+                                            }
                                         }
                                     }
-                                }
-                            }
-                            // Track click count for double/triple click
-                            let now = std::time::Instant::now();
-                            if now.duration_since(last_click_time).as_millis() < 400 {
-                                click_count = (click_count + 1).min(3);
-                            } else {
-                                click_count = 1;
-                            }
-                            last_click_time = now;
+                                    let now = std::time::Instant::now();
+                                    if now.duration_since(last_click_time).as_millis() < 400 {
+                                        click_count = (click_count + 1).min(3);
+                                    } else {
+                                        click_count = 1;
+                                    }
+                                    last_click_time = now;
 
-                            match click_count {
-                                2 => term.select_word_at_view(view_row, col),
-                                3 => term.select_line_at_view(view_row),
-                                _ => {
-                                    selecting = true;
-                                    term.start_selection_from_view(view_row, col);
+                                    match click_count {
+                                        2 => term.select_word_at_view(view_row, col),
+                                        3 => term.select_line_at_view(view_row),
+                                        _ => {
+                                            selecting = true;
+                                            term.start_selection_from_view(view_row, col);
+                                        }
+                                    }
+                                    dirty = true;
+                                    window.request_redraw();
+                                }
+                                ElementState::Released => {
+                                    selecting = false;
                                 }
                             }
-                            dirty = true;
-                            window.request_redraw();
                         }
                     }
-                    ElementState::Released => {
-                        selecting = false;
-                    }
-                },
+                }
                 WindowEvent::MouseWheel { delta, .. } => {
                     let lines = match delta {
                         MouseScrollDelta::LineDelta(_, y) => y.round() as isize,
@@ -438,6 +473,27 @@ fn run() -> Result<(), String> {
                             (p.y / renderer.atlas.cell_height as f64).round() as isize
                         }
                     };
+
+                    // Forward scroll to application if mouse mode is active
+                    if term.mouse_mode > 0 {
+                        if let Some((view_row, col)) = pixel_to_cell(&renderer, &window, mouse_pos) {
+                            let scroll_btn = if lines > 0 {
+                                mouse::BUTTON_SCROLL_UP
+                            } else {
+                                mouse::BUTTON_SCROLL_DOWN
+                            };
+                            for _ in 0..lines.unsigned_abs() {
+                                let bytes = if term.mouse_sgr {
+                                    mouse::encode_sgr(scroll_btn, col, view_row, true)
+                                } else {
+                                    mouse::encode_normal(scroll_btn, col, view_row)
+                                };
+                                write_pty(&pty, &bytes);
+                            }
+                        }
+                        return;
+                    }
+
                     if lines != 0 {
                         term.set_view_scroll(-lines);
                         dirty = true;

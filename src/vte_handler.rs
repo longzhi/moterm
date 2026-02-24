@@ -75,6 +75,38 @@ impl Perform for VteHandler<'_> {
     ) {
         let p = Self::params_to_vec(params);
 
+        // DECSET: CSI ? Pm h (enable private modes)
+        if action == 'h' && intermediates == [b'?'] {
+            for &mode in &p {
+                match mode {
+                    1000 | 1002 | 1003 => self.term.mouse_mode = mode as u16,
+                    1006 => self.term.mouse_sgr = true,
+                    2004 => self.term.bracketed_paste = true,
+                    1049 | 47 | 1047 => self.term.alt_screen = true,
+                    _ => {}
+                }
+            }
+            return;
+        }
+
+        // DECRST: CSI ? Pm l (disable private modes)
+        if action == 'l' && intermediates == [b'?'] {
+            for &mode in &p {
+                match mode {
+                    1000 | 1002 | 1003 => {
+                        if self.term.mouse_mode == mode as u16 {
+                            self.term.mouse_mode = 0;
+                        }
+                    }
+                    1006 => self.term.mouse_sgr = false,
+                    2004 => self.term.bracketed_paste = false,
+                    1049 | 47 | 1047 => self.term.alt_screen = false,
+                    _ => {}
+                }
+            }
+            return;
+        }
+
         // DECSCUSR: cursor style (CSI Ps SP q)
         if action == 'q' && intermediates == [b' '] {
             let style = p.first().copied().unwrap_or(0);
