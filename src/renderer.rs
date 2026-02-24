@@ -151,6 +151,7 @@ pub struct Renderer {
     pub canvas: PixelCanvas,
     pub padding_x: usize,
     pub padding_y: usize,
+    pub cursor_visible: bool,
 }
 
 impl Renderer {
@@ -160,6 +161,7 @@ impl Renderer {
             canvas: PixelCanvas::new(),
             padding_x: 4,
             padding_y: 4,
+            cursor_visible: true,
         }
     }
 
@@ -229,7 +231,7 @@ impl Renderer {
                         bg = SEARCH_BG;
                     }
                 }
-                let is_cursor = matches!(cursor, Some((cr, cc)) if view_row == cr && col == cc);
+                let is_cursor = self.cursor_visible && matches!(cursor, Some((cr, cc)) if view_row == cr && col == cc);
                 if is_cursor && term.cursor_style == crate::terminal::CursorStyle::Block {
                     bg = CURSOR_BG;
                     fg = CURSOR_FG;

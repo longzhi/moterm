@@ -91,6 +91,8 @@ fn run() -> Result<(), String> {
     let mut parser = vte::Parser::new();
     let mut dirty = true;
     let mut search = search::SearchState::new();
+    let mut cursor_visible = true;
+    let mut cursor_blink_timer = std::time::Instant::now();
     let mut modifiers = ModifiersState::empty();
     let mut mouse_pos = PhysicalPosition::new(0.0f64, 0.0f64);
     let mut selecting = false;
@@ -103,7 +105,9 @@ fn run() -> Result<(), String> {
         .map_err(|e| format!("softbuffer surface 创建失败: {e}"))?;
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        // Blink cursor every 530ms
+        let blink_interval = std::time::Duration::from_millis(530);
+        *control_flow = ControlFlow::WaitUntil(std::time::Instant::now() + blink_interval);
 
         match event {
             Event::UserEvent(AppEvent::PtyOutput(data)) => {
@@ -168,6 +172,8 @@ fn run() -> Result<(), String> {
                         return;
                     }
                     if let Some(bytes) = input::map_received_char(ch, modifiers) {
+                        cursor_visible = true;
+                        cursor_blink_timer = std::time::Instant::now();
                         write_pty(&pty, &bytes);
                     }
                 }
@@ -230,6 +236,12 @@ fn run() -> Result<(), String> {
                                         Err(e) => eprintln!("粘贴失败: {e}"),
                                         _ => {}
                                     }
+                                    return;
+                                }
+                                // Cmd+N: new window
+                                winit::event::VirtualKeyCode::N => {
+                                    let exe = std::env::current_exe().unwrap_or_default();
+                                    let _ = std::process::Command::new(exe).spawn();
                                     return;
                                 }
                                 // Cmd+Q: quit
@@ -432,6 +444,7 @@ fn run() -> Result<(), String> {
                     return;
                 }
 
+                renderer.cursor_visible = cursor_visible;
                 if search.active {
                     renderer.render_with_search(&term, &search, size.width as usize, size.height as usize);
                 } else {
@@ -467,7 +480,15 @@ fn run() -> Result<(), String> {
                 }
                 dirty = false;
             }
-            Event::MainEventsCleared => {}
+            Event::MainEventsCleared => {
+                let now = std::time::Instant::now();
+                if now.duration_since(cursor_blink_timer).as_millis() >= 530 {
+                    cursor_visible = !cursor_visible;
+                    cursor_blink_timer = now;
+                    dirty = true;
+                    window.request_redraw();
+                }
+            }
             _ => {}
         }
     });
