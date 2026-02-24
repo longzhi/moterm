@@ -118,6 +118,11 @@ fn run() -> Result<(), String> {
                         parser.advance(&mut performer, b);
                     }
                 }
+                // Send any DSR replies back to PTY
+                if !term.reply_buf.is_empty() {
+                    let reply = std::mem::take(&mut term.reply_buf);
+                    write_pty(&pty, &reply);
+                }
                 if term.bell {
                     term.bell = false;
                     // Visual bell: briefly invert isn't easy without timer,

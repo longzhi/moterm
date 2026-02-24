@@ -111,6 +111,14 @@ pub struct Terminal {
     pub bracketed_paste: bool,
     /// Alternate screen buffer active
     pub alt_screen: bool,
+    /// Scroll region (top, bottom) — 0-indexed, bottom is exclusive
+    pub scroll_top: usize,
+    pub scroll_bottom: usize,
+    /// Saved cursor position
+    saved_cursor_row: usize,
+    saved_cursor_col: usize,
+    /// Reply buffer for DSR responses
+    pub reply_buf: Vec<u8>,
 }
 
 impl Terminal {
@@ -135,6 +143,11 @@ impl Terminal {
             mouse_sgr: false,
             bracketed_paste: false,
             alt_screen: false,
+            scroll_top: 0,
+            scroll_bottom: rows,
+            saved_cursor_row: 0,
+            saved_cursor_col: 0,
+            reply_buf: Vec::new(),
         }
     }
 
@@ -201,6 +214,8 @@ impl Terminal {
         self.screen = new_screen;
         self.cursor_row = min(self.cursor_row, rows - 1);
         self.cursor_col = min(self.cursor_col, cols - 1);
+        self.scroll_top = 0;
+        self.scroll_bottom = rows;
         self.view_scroll = min(self.view_scroll, self.scrollback.len());
     }
 
@@ -578,11 +593,43 @@ impl Terminal {
         self.cursor_col = 0;
     }
 
+    pub fn set_scroll_region(&mut self, top: usize, bottom: usize) {
+        let bottom = bottom.min(self.rows);
+        if top < bottom {
+            self.scroll_top = top;
+            self.scroll_bottom = bottom;
+        }
+        self.cursor_row = 0;
+        self.cursor_col = 0;
+    }
+
+    pub fn save_cursor(&mut self) {
+        self.saved_cursor_row = self.cursor_row;
+        self.saved_cursor_col = self.cursor_col;
+    }
+
+    pub fn restore_cursor(&mut self) {
+        self.cursor_row = self.saved_cursor_row.min(self.rows.saturating_sub(1));
+        self.cursor_col = self.saved_cursor_col.min(self.cols.saturating_sub(1));
+    }
+
+    pub fn erase_chars(&mut self, count: usize) {
+        let fill = self.blank_cell();
+        if self.cursor_row < self.rows {
+            let end = (self.cursor_col + count).min(self.cols);
+            self.screen[self.cursor_row].clear_range(self.cursor_col, end, fill);
+        }
+    }
+
     pub fn reverse_index(&mut self) {
-        if self.cursor_row == 0 {
-            self.screen.insert(0, Row::new(self.cols));
-            self.screen.pop();
-        } else {
+        if self.cursor_row == self.scroll_top {
+            // Scroll down within scroll region
+            let bottom = self.scroll_bottom.min(self.rows);
+            if bottom > self.scroll_top + 1 {
+                self.screen.remove(bottom - 1);
+                self.screen.insert(self.scroll_top, Row::new(self.cols));
+            }
+        } else if self.cursor_row > 0 {
             self.cursor_row -= 1;
         }
     }

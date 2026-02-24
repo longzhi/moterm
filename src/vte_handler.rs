@@ -157,7 +157,51 @@ impl Perform for VteHandler<'_> {
             'd' => self
                 .term
                 .set_cursor_row(Self::first_or(&p, 1).saturating_sub(1)),
+            'X' => self.term.erase_chars(Self::first_or(&p, 1)),
+            'h' => {
+                // SM: set mode (non-private)
+                // Most common: mode 4 = insert mode (IRM)
+            }
+            'l' => {
+                // RM: reset mode (non-private)
+            }
             'm' => self.term.sgr(&p),
+            'n' => {
+                // DSR: Device Status Report
+                if intermediates == [] {
+                    match p.first().copied().unwrap_or(0) {
+                        5 => {
+                            // Status report → "OK"
+                            self.term.reply_buf.extend_from_slice(b"\x1b[0n");
+                        }
+                        6 => {
+                            // Cursor position report
+                            let r = self.term.cursor_row + 1;
+                            let c = self.term.cursor_col + 1;
+                            let reply = format!("\x1b[{};{}R", r, c);
+                            self.term.reply_buf.extend_from_slice(reply.as_bytes());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            'r' => {
+                // DECSTBM: Set scrolling region
+                let top = p.first().copied().unwrap_or(1).max(1) as usize - 1;
+                let bottom = p.get(1).copied().unwrap_or(self.term.rows() as i64).max(1) as usize;
+                self.term.set_scroll_region(top, bottom);
+            }
+            's' => {
+                // Save cursor position
+                self.term.save_cursor();
+            }
+            't' => {
+                // Window manipulation (ignore most, but some TUIs send these)
+            }
+            'u' => {
+                // Restore cursor position
+                self.term.restore_cursor();
+            }
             _ => {}
         }
     }
