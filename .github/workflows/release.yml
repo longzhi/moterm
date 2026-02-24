@@ -11,16 +11,14 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     strategy:
       matrix:
         include:
           - target: aarch64-apple-darwin
-            os: macos-latest
-            name: moterm-aarch64-apple-darwin
+            name: Moterm-aarch64-apple-darwin
           - target: x86_64-apple-darwin
-            os: macos-latest
-            name: moterm-x86_64-apple-darwin
+            name: Moterm-x86_64-apple-darwin
 
     steps:
       - uses: actions/checkout@v4
@@ -32,17 +30,21 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package
+      - name: Package .app bundle
         run: |
-          cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.name }}.tar.gz moterm
-          cd ../../..
+          APP="Moterm.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp bundle/Moterm.app/Contents/Info.plist "$APP/Contents/Info.plist"
+          cp target/${{ matrix.target }}/release/moterm "$APP/Contents/MacOS/moterm"
+          chmod +x "$APP/Contents/MacOS/moterm"
+          cp assets/icon.icns "$APP/Contents/Resources/icon.icns"
+          zip -r "${{ matrix.name }}.zip" "$APP"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: ${{ matrix.name }}.tar.gz
+          path: ${{ matrix.name }}.zip
 
   release:
     name: Create Release
@@ -60,7 +62,7 @@ jobs:
         run: |
           cd artifacts
           for dir in */; do
-            for f in "$dir"*.tar.gz; do
+            for f in "$dir"*.zip; do
               sha256sum "$f" >> ../checksums.txt
             done
           done
@@ -72,5 +74,5 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
             checksums.txt
