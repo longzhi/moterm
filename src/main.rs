@@ -147,6 +147,14 @@ fn run() -> Result<(), String> {
                     if let Ok(pty) = pty.lock() {
                         pty.resize(cols as u16, rows as u16);
                     }
+                    // Immediately resize surface and fill with bg to prevent white flash
+                    let (w_nz, h_nz) = renderer::Renderer::nonzero_dims(new_size.width, new_size.height);
+                    if surface.resize(w_nz, h_nz).is_ok() {
+                        if let Ok(mut buffer) = surface.buffer_mut() {
+                            buffer.fill(crate::color::DEFAULT_BG.to_u32());
+                            let _ = buffer.present();
+                        }
+                    }
                     dirty = true;
                     window.request_redraw();
                 }
