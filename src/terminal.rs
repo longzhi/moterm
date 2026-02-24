@@ -82,6 +82,13 @@ impl Selection {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum CursorStyle {
+    Block,
+    Beam,
+    Underline,
+}
+
 pub struct Terminal {
     cols: usize,
     rows: usize,
@@ -92,6 +99,9 @@ pub struct Terminal {
     pub style: Style,
     pub selection: Option<Selection>,
     pub view_scroll: usize,
+    pub title: String,
+    pub title_changed: bool,
+    pub cursor_style: CursorStyle,
 }
 
 impl Terminal {
@@ -108,6 +118,9 @@ impl Terminal {
             style: Style::default(),
             selection: None,
             view_scroll: 0,
+            title: String::new(),
+            title_changed: false,
+            cursor_style: CursorStyle::Block,
         }
     }
 
@@ -460,7 +473,9 @@ impl Terminal {
         min(row, self.rows.saturating_sub(1))
     }
 
-    pub fn append_osc_title(&mut self, _title: &str) {
+    pub fn append_osc_title(&mut self, title: &str) {
+        self.title = title.to_string();
+        self.title_changed = true;
         // Title handling intentionally omitted in this minimal build.
     }
 

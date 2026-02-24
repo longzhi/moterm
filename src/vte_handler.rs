@@ -68,11 +68,24 @@ impl Perform for VteHandler<'_> {
     fn csi_dispatch(
         &mut self,
         params: &Params,
-        _intermediates: &[u8],
+        intermediates: &[u8],
         _ignore: bool,
         action: char,
     ) {
         let p = Self::params_to_vec(params);
+
+        // DECSCUSR: cursor style (CSI Ps SP q)
+        if action == 'q' && intermediates == [b' '] {
+            let style = p.first().copied().unwrap_or(0);
+            self.term.cursor_style = match style {
+                0 | 1 | 2 => crate::terminal::CursorStyle::Block,
+                3 | 4 => crate::terminal::CursorStyle::Underline,
+                5 | 6 => crate::terminal::CursorStyle::Beam,
+                _ => crate::terminal::CursorStyle::Block,
+            };
+            return;
+        }
+
         match action {
             'A' => self.term.move_rel(-(Self::first_or(&p, 1) as isize), 0),
             'B' => self.term.move_rel(Self::first_or(&p, 1) as isize, 0),

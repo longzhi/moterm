@@ -212,8 +212,8 @@ impl Renderer {
                 if term.is_selected(global_row, col) {
                     bg = SELECTION_BG;
                 }
-                if matches!(cursor, Some((cursor_row, cursor_col)) if view_row == cursor_row && col == cursor_col)
-                {
+                let is_cursor = matches!(cursor, Some((cr, cc)) if view_row == cr && col == cc);
+                if is_cursor && term.cursor_style == crate::terminal::CursorStyle::Block {
                     bg = CURSOR_BG;
                     fg = CURSOR_FG;
                 }
@@ -223,6 +223,14 @@ impl Renderer {
                     .fill_rect(x, y, self.atlas.cell_width, self.atlas.cell_height, bg);
                 if cell.ch != ' ' {
                     self.draw_glyph(cell.ch, fg, x, y);
+                }
+                if is_cursor && term.cursor_style == crate::terminal::CursorStyle::Beam {
+                    // 2px wide beam at left edge
+                    self.canvas.fill_rect(x, y, 2, self.atlas.cell_height, CURSOR_BG);
+                } else if is_cursor && term.cursor_style == crate::terminal::CursorStyle::Underline {
+                    // 2px underline at bottom
+                    let uy = y + self.atlas.cell_height.saturating_sub(2);
+                    self.canvas.fill_rect(x, uy, self.atlas.cell_width, 2, CURSOR_BG);
                 }
             }
         }

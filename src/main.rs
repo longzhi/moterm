@@ -83,6 +83,10 @@ fn run() -> Result<(), String> {
                         parser.advance(&mut performer, b);
                     }
                 }
+                if term.title_changed {
+                    term.title_changed = false;
+                    window.set_title(if term.title.is_empty() { "moterm" } else { &term.title });
+                }
                 dirty = true;
                 window.request_redraw();
             }
