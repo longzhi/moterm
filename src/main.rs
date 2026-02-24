@@ -6,6 +6,8 @@ mod input;
 mod pty;
 mod renderer;
 mod terminal;
+mod search;
+mod url;
 mod vte_handler;
 
 use std::sync::{Arc, Mutex};
@@ -70,6 +72,7 @@ fn run() -> Result<(), String> {
 
     let mut parser = vte::Parser::new();
     let mut dirty = true;
+    let mut search = search::SearchState::new();
     let mut modifiers = ModifiersState::empty();
     let mut mouse_pos = PhysicalPosition::new(0.0f64, 0.0f64);
     let mut selecting = false;
@@ -135,6 +138,15 @@ fn run() -> Result<(), String> {
                     modifiers = m;
                 }
                 WindowEvent::ReceivedCharacter(ch) => {
+                    if search.active {
+                        if !ch.is_control() && !modifiers.logo() && !modifiers.ctrl() {
+                            search.push_char(ch);
+                            search.search(&term);
+                            dirty = true;
+                            window.request_redraw();
+                        }
+                        return;
+                    }
                     if let Some(bytes) = input::map_received_char(ch, modifiers) {
                         write_pty(&pty, &bytes);
                     }
@@ -144,6 +156,38 @@ fn run() -> Result<(), String> {
                         return;
                     }
                     if let Some(key) = input.virtual_keycode {
+                        // Search mode key handling
+                        if search.active && !modifiers.logo() {
+                            match key {
+                                winit::event::VirtualKeyCode::Escape => {
+                                    search.close();
+                                    dirty = true;
+                                    window.request_redraw();
+                                }
+                                winit::event::VirtualKeyCode::Back => {
+                                    search.pop_char();
+                                    search.search(&term);
+                                    dirty = true;
+                                    window.request_redraw();
+                                }
+                                winit::event::VirtualKeyCode::Return => {
+                                    search.next_match();
+                                    if let Some(m) = search.current_match() {
+                                        let vis_start = term.visible_start_global_row();
+                                        let vis_end = vis_start + term.rows();
+                                        if m.global_row < vis_start || m.global_row >= vis_end {
+                                            let total = term.total_lines();
+                                            let scroll = total.saturating_sub(m.global_row + term.rows());
+                                            term.view_scroll = scroll;
+                                        }
+                                    }
+                                    dirty = true;
+                                    window.request_redraw();
+                                }
+                                _ => {}
+                            }
+                            return;
+                        }
                         if modifiers.logo() {
                             match key {
                                 // Cmd+C: copy
@@ -214,6 +258,36 @@ fn run() -> Result<(), String> {
                                     window.request_redraw();
                                     return;
                                 }
+                                // Cmd+F: toggle search
+                                winit::event::VirtualKeyCode::F => {
+                                    search.toggle();
+                                    dirty = true;
+                                    window.request_redraw();
+                                    return;
+                                }
+                                // Cmd+G: next search match
+                                winit::event::VirtualKeyCode::G => {
+                                    if search.active {
+                                        if modifiers.shift() {
+                                            search.prev_match();
+                                        } else {
+                                            search.next_match();
+                                        }
+                                        // Scroll to current match
+                                        if let Some(m) = search.current_match() {
+                                            let vis_start = term.visible_start_global_row();
+                                            let vis_end = vis_start + term.rows();
+                                            if m.global_row < vis_start || m.global_row >= vis_end {
+                                                let total = term.total_lines();
+                                                let scroll = total.saturating_sub(m.global_row + term.rows());
+                                                term.view_scroll = scroll;
+                                            }
+                                        }
+                                        dirty = true;
+                                        window.request_redraw();
+                                    }
+                                    return;
+                                }
                                 _ => {}
                             }
                         }
@@ -264,9 +338,22 @@ fn run() -> Result<(), String> {
                     ..
                 } => match state {
                     ElementState::Pressed => {
-                        selecting = true;
                         if let Some((view_row, col)) = pixel_to_cell(&renderer, &window, mouse_pos)
                         {
+                            // Cmd+click: open URL
+                            if modifiers.logo() {
+                                if let Some(row) = term.visible_line(view_row) {
+                                    let line_text: String = row.cells.iter().map(|c| c.ch).collect();
+                                    for (start, end, u) in url::detect_urls(&line_text) {
+                                        if col >= start && col < end {
+                                            eprintln!("打开 URL: {u}");
+                                            url::open_url(&u);
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                            selecting = true;
                             term.start_selection_from_view(view_row, col);
                             dirty = true;
                             window.request_redraw();
@@ -303,7 +390,11 @@ fn run() -> Result<(), String> {
                     return;
                 }
 
-                renderer.render(&term, size.width as usize, size.height as usize);
+                if search.active {
+                    renderer.render_with_search(&term, &search, size.width as usize, size.height as usize);
+                } else {
+                    renderer.render(&term, size.width as usize, size.height as usize);
+                }
 
                 match surface.buffer_mut() {
                     Ok(mut buffer) => {

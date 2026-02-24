@@ -59,6 +59,21 @@ pub const CURSOR_FG: Rgb = Rgb {
     g: 0x10,
     b: 0x10,
 };
+pub const SEARCH_BG: Rgb = Rgb {
+    r: 0x66,
+    g: 0x44,
+    b: 0x00,
+};
+pub const SEARCH_CURRENT_BG: Rgb = Rgb {
+    r: 0xff,
+    g: 0x99,
+    b: 0x00,
+};
+pub const SEARCH_BAR_BG: Rgb = Rgb {
+    r: 0x2d,
+    g: 0x2d,
+    b: 0x2d,
+};
 
 pub fn resolve_color(spec: ColorSpec) -> Rgb {
     match spec {

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use fontdue::{Font, Metrics};
 
-use crate::color::{resolve_color, Rgb, CURSOR_BG, CURSOR_FG, DEFAULT_BG, SELECTION_BG};
+use crate::color::{resolve_color, Rgb, CURSOR_BG, CURSOR_FG, DEFAULT_BG, SEARCH_BAR_BG, SEARCH_BG, SEARCH_CURRENT_BG, SELECTION_BG};
 use crate::terminal::Terminal;
 
 #[derive(Clone)]
@@ -187,7 +187,15 @@ impl Renderer {
         )
     }
 
+    pub fn render_with_search(&mut self, term: &Terminal, search: &crate::search::SearchState, width: usize, height: usize) {
+        self.render_inner(term, Some(search), width, height);
+    }
+
     pub fn render(&mut self, term: &Terminal, width: usize, height: usize) {
+        self.render_inner(term, None, width, height);
+    }
+
+    fn render_inner(&mut self, term: &Terminal, search: Option<&crate::search::SearchState>, width: usize, height: usize) {
         self.canvas.resize(width.max(1), height.max(1));
         self.canvas.clear(DEFAULT_BG);
 
@@ -212,6 +220,14 @@ impl Renderer {
                 if term.is_selected(global_row, col) {
                     bg = SELECTION_BG;
                 }
+                if let Some(s) = search {
+                    if s.is_current_highlight(global_row, col) {
+                        bg = SEARCH_CURRENT_BG;
+                        fg = Rgb::new(0, 0, 0);
+                    } else if s.is_highlighted(global_row, col) {
+                        bg = SEARCH_BG;
+                    }
+                }
                 let is_cursor = matches!(cursor, Some((cr, cc)) if view_row == cr && col == cc);
                 if is_cursor && term.cursor_style == crate::terminal::CursorStyle::Block {
                     bg = CURSOR_BG;
@@ -231,6 +247,29 @@ impl Renderer {
                     // 2px underline at bottom
                     let uy = y + self.atlas.cell_height.saturating_sub(2);
                     self.canvas.fill_rect(x, uy, self.atlas.cell_width, 2, CURSOR_BG);
+                }
+            }
+        }
+
+        // Draw search bar at bottom if active
+        if let Some(s) = search {
+            if s.active {
+                let bar_h = self.atlas.cell_height + 4;
+                let bar_y = height.saturating_sub(bar_h);
+                self.canvas.fill_rect(0, bar_y, width, bar_h, SEARCH_BAR_BG);
+                let label = format!("🔍 {}", s.query);
+                let match_info = if s.matches.is_empty() {
+                    if s.query.is_empty() { String::new() } else { " (无匹配)".to_string() }
+                } else {
+                    format!(" ({}/{})", s.current + 1, s.matches.len())
+                };
+                let text = format!("{}{}", label, match_info);
+                let mut x = 4;
+                let y = bar_y + 2;
+                for ch in text.chars() {
+                    if x + self.atlas.cell_width > width { break; }
+                    self.draw_glyph(ch, Rgb::new(0xee, 0xee, 0xee), x, y);
+                    x += self.atlas.cell_width;
                 }
             }
         }
