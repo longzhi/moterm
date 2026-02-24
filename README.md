@@ -1,4 +1,5 @@
 <p align="center">
+  <img src="assets/icon-512.png" width="128" height="128" alt="Moterm Icon">
   <h1 align="center">Moterm</h1>
   <p align="center">A minimal, blazing-fast terminal emulator written in Rust</p>
 </p>
