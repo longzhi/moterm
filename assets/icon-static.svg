@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" fill="#1a1b26"/>
+  
+  <!-- Window dots -->
+  <circle cx="88" cy="68" r="14" fill="#ff5f57"/>
+  <circle cx="132" cy="68" r="14" fill="#febc2e"/>
+  <circle cx="176" cy="68" r="14" fill="#28c840"/>
+  
+  <!-- Prompt chevron ">" -->
+  <path d="M80 200 L160 256 L80 312" stroke="#7aa2f7" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  
+  <!-- Cursor block - the bright "mote" -->
+  <rect x="200" y="220" width="72" height="72" rx="8" fill="#ff9e64"/>
+  
+  <!-- Floating motes -->
+  <circle cx="340" cy="180" r="12" fill="#7aa2f7" opacity="0.6"/>
+  <circle cx="390" cy="240" r="8" fill="#bb9af7" opacity="0.45"/>
+  <circle cx="360" cy="310" r="6" fill="#9ece6a" opacity="0.35"/>
+  <circle cx="420" cy="160" r="5" fill="#f7768e" opacity="0.3"/>
+</svg>
