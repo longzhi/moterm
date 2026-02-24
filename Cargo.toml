@@ -2,6 +2,13 @@
 name = "moterm"
 version = "0.1.0"
 edition = "2021"
+description = "A minimal, blazing-fast terminal emulator"
+license = "MIT"
+repository = "https://github.com/longzhi/moterm"
+homepage = "https://github.com/longzhi/moterm"
+keywords = ["terminal", "emulator", "pty", "lightweight"]
+categories = ["command-line-utilities"]
+readme = "README.md"
 
 [dependencies]
 winit = "0.28"

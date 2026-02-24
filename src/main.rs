@@ -31,6 +31,24 @@ enum AppEvent {
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--version" || a == "-v") {
+        println!("moterm {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        println!("moterm {} — A minimal terminal emulator", env!("CARGO_PKG_VERSION"));
+        println!();
+        println!("USAGE: moterm [OPTIONS]");
+        println!();
+        println!("OPTIONS:");
+        println!("  -v, --version    Print version");
+        println!("  -h, --help       Print this help");
+        println!();
+        println!("CONFIG: ~/.config/moterm/config.toml");
+        println!("REPO:   https://github.com/longzhi/moterm");
+        return;
+    }
     if let Err(e) = run() {
         eprintln!("moterm 启动失败: {e}");
         std::process::exit(1);
