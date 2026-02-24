@@ -65,6 +65,7 @@ impl GlyphCache {
 
 pub struct FontAtlas {
     pub font: Font,
+    pub fallback_fonts: Vec<Font>,
     pub px: f32,
     pub cell_width: usize,
     pub cell_height: usize,
@@ -75,12 +76,13 @@ pub struct FontAtlas {
 }
 
 impl FontAtlas {
-    pub fn new(font: Font, px: f32) -> Self {
+    pub fn new(font: Font, fallback_fonts: Vec<Font>, px: f32) -> Self {
         let m = font.metrics('M', px);
         let h = (m.height as i32 + 4).max(px.ceil() as i32 + 2) as usize;
         let w = (m.advance_width.ceil() as i32 + 1).max((px * 0.55) as i32) as usize;
         Self {
             font,
+            fallback_fonts,
             px,
             cell_width: w.max(1),
             cell_height: h.max(1),
@@ -88,6 +90,22 @@ impl FontAtlas {
             line_gap: 0,
             cache: Arc::new(Mutex::new(GlyphCache::new(4096))),
         }
+    }
+
+    /// Find which font has a glyph for this character
+    pub fn font_for_char(&self, ch: char) -> &Font {
+        // Check primary font first
+        if self.font.lookup_glyph_index(ch) != 0 {
+            return &self.font;
+        }
+        // Try fallbacks
+        for fb in &self.fallback_fonts {
+            if fb.lookup_glyph_index(ch) != 0 {
+                return fb;
+            }
+        }
+        // Default to primary
+        &self.font
     }
 }
 
@@ -155,9 +173,9 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(font: Font, px: f32) -> Self {
+    pub fn new(font: Font, fallback_fonts: Vec<Font>, px: f32) -> Self {
         Self {
-            atlas: FontAtlas::new(font, px),
+            atlas: FontAtlas::new(font, fallback_fonts, px),
             canvas: PixelCanvas::new(),
             padding_x: 4,
             padding_y: 4,
@@ -172,7 +190,8 @@ impl Renderer {
 
     pub fn set_font_size(&mut self, px: f32) {
         let font = self.atlas.font.clone();
-        self.atlas = FontAtlas::new(font, px);
+        let fallbacks = self.atlas.fallback_fonts.clone();
+        self.atlas = FontAtlas::new(font, fallbacks, px);
     }
 
     pub fn grid_size_for_pixels(&self, width: usize, height: usize) -> (usize, usize) {
@@ -279,10 +298,11 @@ impl Renderer {
     }
 
     fn draw_glyph(&mut self, ch: char, color: Rgb, cell_x: usize, cell_y: usize) {
+        let font = self.atlas.font_for_char(ch);
         let glyph = {
             let mut cache = self.atlas.cache.lock().unwrap();
             cache
-                .get_or_insert(&self.atlas.font, ch, self.atlas.px)
+                .get_or_insert(font, ch, self.atlas.px)
                 .clone()
         };
         if glyph.metrics.width == 0 || glyph.metrics.height == 0 {

@@ -59,3 +59,36 @@ pub fn load_monospace_font(cfg: &Config) -> Result<(Font, PathBuf), String> {
 
     Err("无法加载系统等宽字体；当前仓库未提供可用嵌入字体。".to_string())
 }
+
+/// Load CJK fallback fonts from the system
+pub fn load_fallback_fonts() -> Vec<Font> {
+    let cjk_candidates = [
+        // macOS CJK fonts
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/System/Library/Fonts/Supplemental/Songti.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "/Library/Fonts/Arial Unicode.ttf",
+        // Symbols
+        "/System/Library/Fonts/Apple Color Emoji.ttc",
+    ];
+
+    let mut fonts = Vec::new();
+    for p in cjk_candidates {
+        let path = Path::new(p);
+        if !path.exists() {
+            continue;
+        }
+        if let Ok(bytes) = fs::read(path) {
+            if let Ok(font) = Font::from_bytes(bytes, FontSettings::default()) {
+                eprintln!("回退字体: {}", p);
+                fonts.push(font);
+                if fonts.len() >= 2 {
+                    break; // 2 fallbacks is enough
+                }
+            }
+        }
+    }
+    fonts
+}

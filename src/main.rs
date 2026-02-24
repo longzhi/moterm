@@ -75,7 +75,8 @@ fn run() -> Result<(), String> {
 
     let scale_factor = window.scale_factor();
     let font_size = (cfg.font.size * scale_factor as f32).max(8.0);
-    let mut renderer = Renderer::new(font, font_size);
+    let fallback_fonts = font::load_fallback_fonts();
+    let mut renderer = Renderer::new(font, fallback_fonts, font_size);
     let size = window.inner_size();
     let (cols, rows) = renderer.grid_size_for_pixels(size.width as usize, size.height as usize);
     let mut term = Terminal::new(cols, rows);
