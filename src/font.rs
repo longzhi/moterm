@@ -70,8 +70,8 @@ pub fn load_fallback_fonts() -> Vec<Font> {
         "/System/Library/Fonts/Supplemental/Songti.ttc",
         "/System/Library/Fonts/Hiragino Sans GB.ttc",
         "/Library/Fonts/Arial Unicode.ttf",
-        // Symbols
-        "/System/Library/Fonts/Apple Color Emoji.ttc",
+        // Symbols (arrows, checkmarks, box drawing, misc symbols)
+        "/System/Library/Fonts/Apple Symbols.ttf",
     ];
 
     let mut fonts = Vec::new();
@@ -84,8 +84,8 @@ pub fn load_fallback_fonts() -> Vec<Font> {
             if let Ok(font) = Font::from_bytes(bytes, FontSettings::default()) {
                 eprintln!("回退字体: {}", p);
                 fonts.push(font);
-                if fonts.len() >= 2 {
-                    break; // 2 fallbacks is enough
+                if fonts.len() >= 3 {
+                    break; // CJK + symbols
                 }
             }
         }
