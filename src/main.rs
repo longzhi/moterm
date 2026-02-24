@@ -135,7 +135,11 @@ fn run() -> Result<(), String> {
                 *control_flow = ControlFlow::Exit;
             }
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::CloseRequested => {
+                    if confirm_quit(&pty) {
+                        *control_flow = ControlFlow::Exit;
+                    }
+                }
                 WindowEvent::Resized(new_size) => {
                     let (cols, rows) = renderer
                         .grid_size_for_pixels(new_size.width as usize, new_size.height as usize);
@@ -244,9 +248,11 @@ fn run() -> Result<(), String> {
                                     let _ = std::process::Command::new(exe).spawn();
                                     return;
                                 }
-                                // Cmd+Q: quit
+                                // Cmd+Q: quit (with confirmation if child running)
                                 winit::event::VirtualKeyCode::Q => {
-                                    *control_flow = ControlFlow::Exit;
+                                    if confirm_quit(&pty) {
+                                        *control_flow = ControlFlow::Exit;
+                                    }
                                     return;
                                 }
                                 // Cmd+= / Cmd++: zoom in
@@ -514,6 +520,40 @@ fn pixel_to_cell(
         gy / renderer.atlas.cell_height,
         gx / renderer.atlas.cell_width,
     ))
+}
+
+fn confirm_quit(pty: &Arc<Mutex<PtyHandle>>) -> bool {
+    // Check if child process has sub-processes running
+    let has_children = if let Ok(pty) = pty.lock() {
+        let pid = pty.child_pid;
+        // Check if shell has child processes (commands running)
+        let output = std::process::Command::new("pgrep")
+            .args(["-P", &pid.to_string()])
+            .output();
+        matches!(output, Ok(o) if !o.stdout.is_empty())
+    } else {
+        false
+    };
+
+    if !has_children {
+        return true;
+    }
+
+    // Show macOS native confirmation dialog
+    let result = std::process::Command::new("osascript")
+        .args([
+            "-e",
+            r#"display dialog "有进程正在运行，确定要关闭 Moterm 吗？" buttons {"取消", "关闭"} default button "取消" with icon caution with title "Moterm""#,
+        ])
+        .output();
+
+    match result {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            stdout.contains("关闭")
+        }
+        Err(_) => true, // If dialog fails, allow quit
+    }
 }
 
 fn write_pty(pty: &Arc<Mutex<PtyHandle>>, bytes: &[u8]) {
