@@ -61,7 +61,10 @@ impl PtyHandle {
                 let tpv_name = CString::new("TERM_PROGRAM_VERSION").unwrap();
                 let tpv_val = CString::new(env!("CARGO_PKG_VERSION")).unwrap();
                 libc::setenv(tpv_name.as_ptr(), tpv_val.as_ptr(), 1);
-                let argv = [shell_c.as_ptr(), std::ptr::null()];
+                // Start as login shell (-l) so .zprofile/.zshrc are sourced
+                // and PATH includes Homebrew, fnm, etc.
+                let login_flag = CString::new("-l").unwrap();
+                let argv = [shell_c.as_ptr(), login_flag.as_ptr(), std::ptr::null()];
                 libc::execvp(shell_c.as_ptr(), argv.as_ptr());
                 libc::_exit(127);
             }
