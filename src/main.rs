@@ -1,5 +1,6 @@
 mod clipboard;
 mod color;
+mod config;
 mod font;
 mod input;
 mod pty;
@@ -35,23 +36,29 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
-    let (font, font_path) = font::load_monospace_font()?;
+    let cfg = config::Config::load();
+
+    let (font, font_path) = font::load_monospace_font(&cfg)?;
     eprintln!("使用字体: {}", font_path.display());
 
     let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
     let window = WindowBuilder::new()
         .with_title("moterm")
-        .with_inner_size(LogicalSize::new(960.0, 600.0))
+        .with_inner_size(LogicalSize::new(
+            cfg.window.width as f64,
+            cfg.window.height as f64,
+        ))
         .with_resizable(true)
         .build(&event_loop)
         .map_err(|e| format!("创建窗口失败: {e}"))?;
 
     let scale_factor = window.scale_factor();
-    let font_size = (14.0 * scale_factor) as f32; // 14pt logical, scaled for HiDPI
+    let font_size = (cfg.font.size * scale_factor as f32).max(8.0);
     let mut renderer = Renderer::new(font, font_size);
     let size = window.inner_size();
     let (cols, rows) = renderer.grid_size_for_pixels(size.width as usize, size.height as usize);
     let mut term = Terminal::new(cols, rows);
+    term.cursor_style = cfg.initial_cursor_style();
 
     let proxy = event_loop.create_proxy();
     let pty = PtyHandle::spawn(cols as u16, rows as u16, move |ev| {
@@ -82,6 +89,13 @@ fn run() -> Result<(), String> {
                     for b in data {
                         parser.advance(&mut performer, b);
                     }
+                }
+                if term.bell {
+                    term.bell = false;
+                    // Visual bell: briefly invert isn't easy without timer,
+                    // so we use macOS system beep
+                    #[cfg(target_os = "macos")]
+                    unsafe { libc::write(libc::STDOUT_FILENO, b"\x07".as_ptr() as _, 1); }
                 }
                 if term.title_changed {
                     term.title_changed = false;
@@ -183,7 +197,7 @@ fn run() -> Result<(), String> {
                                 }
                                 // Cmd+0: reset zoom
                                 winit::event::VirtualKeyCode::Key0 => {
-                                    let default_size = (14.0 * scale_factor) as f32;
+                                    let default_size = (cfg.font.size * scale_factor as f32).max(8.0);
                                     renderer.set_font_size(default_size);
                                     let size = window.inner_size();
                                     let (cols, rows) = renderer.grid_size_for_pixels(size.width as usize, size.height as usize);

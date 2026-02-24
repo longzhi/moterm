@@ -102,6 +102,7 @@ pub struct Terminal {
     pub title: String,
     pub title_changed: bool,
     pub cursor_style: CursorStyle,
+    pub bell: bool,
 }
 
 impl Terminal {
@@ -121,6 +122,7 @@ impl Terminal {
             title: String::new(),
             title_changed: false,
             cursor_style: CursorStyle::Block,
+            bell: false,
         }
     }
 

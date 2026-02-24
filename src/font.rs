@@ -3,13 +3,26 @@ use std::path::{Path, PathBuf};
 
 use fontdue::{Font, FontSettings};
 
-pub fn load_monospace_font() -> Result<(Font, PathBuf), String> {
-    // Prefer Nerd Font (has icons for starship/powerlevel10k prompts)
+use crate::config::Config;
+
+pub fn load_monospace_font(cfg: &Config) -> Result<(Font, PathBuf), String> {
+    // If user specified a font family in config, try to find it
     let home = std::env::var("HOME").unwrap_or_default();
+
+    let mut custom_paths: Vec<String> = Vec::new();
+    if let Some(ref family) = cfg.font.family {
+        // Try common locations with the family name
+        let clean = family.replace(' ', "");
+        custom_paths.push(format!("{}/Library/Fonts/{}-Regular.ttf", home, clean));
+        custom_paths.push(format!("{}/Library/Fonts/{}.ttf", home, clean));
+        custom_paths.push(format!("/Library/Fonts/{}-Regular.ttf", clean));
+        custom_paths.push(format!("/Library/Fonts/{}.ttf", clean));
+    }
+
+    // Default: prefer Nerd Font
     let nerd_font = format!("{}/Library/Fonts/FiraCodeNerdFontMono-Regular.ttf", home);
 
-    let candidates = [
-        nerd_font.as_str(),
+    let system_fonts = [
         "/System/Library/Fonts/SFNSMono.ttf",
         "/System/Library/Fonts/Menlo.ttc",
         "/System/Library/Fonts/Supplemental/Menlo.ttc",
@@ -18,7 +31,11 @@ pub fn load_monospace_font() -> Result<(Font, PathBuf), String> {
         "/System/Library/Fonts/Monaco.ttf",
     ];
 
-    for p in candidates {
+    let mut all_candidates: Vec<&str> = custom_paths.iter().map(|s| s.as_str()).collect();
+    all_candidates.push(nerd_font.as_str());
+    all_candidates.extend(system_fonts.iter());
+
+    for p in all_candidates {
         let path = Path::new(p);
         if !path.exists() {
             continue;

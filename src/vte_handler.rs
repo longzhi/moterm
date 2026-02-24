@@ -44,6 +44,7 @@ impl Perform for VteHandler<'_> {
             b'\r' => self.term.carriage_return(),
             8 => self.term.backspace(),
             b'\t' => self.term.tab(),
+            0x07 => self.term.bell = true,  // BEL
             0x0c => self.term.clear_all(),
             _ => {}
         }
