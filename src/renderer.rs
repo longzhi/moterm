@@ -162,6 +162,16 @@ impl Renderer {
         }
     }
 
+    pub fn adjust_font_size(&mut self, delta: f32) {
+        let new_px = (self.atlas.px + delta).clamp(8.0, 72.0);
+        self.set_font_size(new_px);
+    }
+
+    pub fn set_font_size(&mut self, px: f32) {
+        let font = self.atlas.font.clone();
+        self.atlas = FontAtlas::new(font, px);
+    }
+
     pub fn grid_size_for_pixels(&self, width: usize, height: usize) -> (usize, usize) {
         let usable_w = width.saturating_sub(self.padding_x * 2);
         let usable_h = height.saturating_sub(self.padding_y * 2);

@@ -126,15 +126,78 @@ fn run() -> Result<(), String> {
                         return;
                     }
                     if let Some(key) = input.virtual_keycode {
-                        if modifiers.logo()
-                            && key == winit::event::VirtualKeyCode::C
-                            && term.selection_non_empty()
-                        {
-                            let text = term.selection_text_or_empty();
-                            if let Err(e) = clipboard::copy_to_clipboard(&text) {
-                                eprintln!("复制失败: {e}");
+                        if modifiers.logo() {
+                            match key {
+                                // Cmd+C: copy
+                                winit::event::VirtualKeyCode::C if term.selection_non_empty() => {
+                                    let text = term.selection_text_or_empty();
+                                    if let Err(e) = clipboard::copy_to_clipboard(&text) {
+                                        eprintln!("复制失败: {e}");
+                                    }
+                                    return;
+                                }
+                                // Cmd+V: paste (with bracketed paste support)
+                                winit::event::VirtualKeyCode::V => {
+                                    match clipboard::paste_from_clipboard() {
+                                        Ok(text) if !text.is_empty() => {
+                                            // Bracketed paste mode
+                                            write_pty(&pty, b"\x1b[200~");
+                                            write_pty(&pty, text.as_bytes());
+                                            write_pty(&pty, b"\x1b[201~");
+                                        }
+                                        Err(e) => eprintln!("粘贴失败: {e}"),
+                                        _ => {}
+                                    }
+                                    return;
+                                }
+                                // Cmd+Q: quit
+                                winit::event::VirtualKeyCode::Q => {
+                                    *control_flow = ControlFlow::Exit;
+                                    return;
+                                }
+                                // Cmd+= / Cmd++: zoom in
+                                winit::event::VirtualKeyCode::Equals => {
+                                    renderer.adjust_font_size(2.0);
+                                    let size = window.inner_size();
+                                    let (cols, rows) = renderer.grid_size_for_pixels(size.width as usize, size.height as usize);
+                                    term.resize(cols, rows);
+                                    if let Ok(pty) = pty.lock() { pty.resize(cols as u16, rows as u16); }
+                                    dirty = true;
+                                    window.request_redraw();
+                                    return;
+                                }
+                                // Cmd+-: zoom out
+                                winit::event::VirtualKeyCode::Minus => {
+                                    renderer.adjust_font_size(-2.0);
+                                    let size = window.inner_size();
+                                    let (cols, rows) = renderer.grid_size_for_pixels(size.width as usize, size.height as usize);
+                                    term.resize(cols, rows);
+                                    if let Ok(pty) = pty.lock() { pty.resize(cols as u16, rows as u16); }
+                                    dirty = true;
+                                    window.request_redraw();
+                                    return;
+                                }
+                                // Cmd+0: reset zoom
+                                winit::event::VirtualKeyCode::Key0 => {
+                                    let default_size = (14.0 * scale_factor) as f32;
+                                    renderer.set_font_size(default_size);
+                                    let size = window.inner_size();
+                                    let (cols, rows) = renderer.grid_size_for_pixels(size.width as usize, size.height as usize);
+                                    term.resize(cols, rows);
+                                    if let Ok(pty) = pty.lock() { pty.resize(cols as u16, rows as u16); }
+                                    dirty = true;
+                                    window.request_redraw();
+                                    return;
+                                }
+                                // Cmd+K: clear scrollback
+                                winit::event::VirtualKeyCode::K => {
+                                    term.clear_scrollback();
+                                    dirty = true;
+                                    window.request_redraw();
+                                    return;
+                                }
+                                _ => {}
                             }
-                            return;
                         }
 
                         match key {

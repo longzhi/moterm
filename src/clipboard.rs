@@ -1,5 +1,13 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::process::{Command, Stdio};
+
+pub fn paste_from_clipboard() -> Result<String, String> {
+    let output = Command::new("pbpaste")
+        .stdout(Stdio::piped())
+        .output()
+        .map_err(|e| format!("启动 pbpaste 失败: {e}"))?;
+    String::from_utf8(output.stdout).map_err(|e| format!("剪贴板内容非 UTF-8: {e}"))
+}
 
 pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
     if text.is_empty() {
